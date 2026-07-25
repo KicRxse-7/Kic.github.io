@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WUYA</title>
+<style>
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%; height:100%; overflow:hidden; background:#fff; font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
+
+/* ---- full-bleed video ---- */
+.video-bg {
+  position:fixed; inset:0;
+  background:#000;
+}
+
+.video-bg video {
+  width:100%; height:100%;
+  display:block;
+  object-fit:cover;
+  pointer-events:none;
+}
+
+/* ---- header ---- */
+.header {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 40px; height:56px;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+
+.logo {
+  font-size:15px; font-weight:550; letter-spacing:0.06em;
+  color:#111;
+}
+
+.nav { display:flex; gap:24px; }
+.nav a {
+  font-size:13px; text-decoration:none;
+  color:rgba(0,0,0,0.25); transition:color 0.2s;
+  letter-spacing:0.02em;
+}
+.nav a:hover { color:rgba(0,0,0,0.5); }
+
+/* ---- loading ---- */
+.loading {
+  position:fixed; inset:0; z-index:1000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  background:#fff;
+  transition:opacity 0.7s ease, visibility 0.7s;
+}
+.loading.hidden { opacity:0; visibility:hidden; }
+
+.loading-ring {
+  width:26px; height:26px;
+  border:2px solid rgba(0,0,0,0.05);
+  border-top-color:rgba(0,0,0,0.2);
+  border-radius:50%;
+  animation:spin 1s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.loading-text { color:rgba(0,0,0,0.15); font-size:12px; letter-spacing:0.12em; }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="loading-ring"></div>
+  <div class="loading-text">加载中</div>
+</div>
+
+<div class="video-bg">
+  <video id="video" muted playsInline preload="auto"></video>
+</div>
+
+<header class="header">
+  <span class="logo">WUYA</span>
+  <nav class="nav">
+    <a href="#">About</a>
+    <a href="#">Gallery</a>
+    <a href="#">Contact</a>
+  </nav>
+</header>
+
+<script>
+(function () {
+  'use strict';
+
+  var video   = document.getElementById('video');
+  var loading = document.getElementById('loading');
+
+  /* more sensitive: 1.5 instead of 0.8 */
+  var FRAC       = 1.5;
+  var metaReady  = false;
+  var prevX      = -1;
+  var targetTime = 0;
+  var isSeeking  = false;
+  var pending    = null;
+
+  function seekTo(t) {
+    if (!metaReady) return;
+    t = Math.max(0, Math.min(t, video.duration));
+    if (!isSeeking) {
+      isSeeking = true;
+      video.currentTime = t;
+    } else {
+      pending = t;
+    }
+  }
+
+  video.onseeked = function () {
+    isSeeking = false;
+    if (pending !== null) {
+      var t = pending;
+      pending = null;
+      seekTo(t);
+    }
+  };
+
+  video.onseeking = function () {
+    isSeeking = true;
+  };
+
+  document.addEventListener('mousemove', function (e) {
+    if (!metaReady) return;
+    var cx = e.clientX;
+
+    if (prevX === -1) {
+      prevX = cx;
+      return;
+    }
+
+    var delta = cx - prevX;
+    prevX = cx;
+
+    var timeOffset = (delta / window.innerWidth) * FRAC * video.duration;
+    targetTime = Math.max(0, Math.min(video.duration, targetTime - timeOffset));
+
+    seekTo(targetTime);
+
+    if (!document.body.classList.contains('active')) {
+      document.body.classList.add('active');
+    }
+  });
+
+  document.addEventListener('mouseleave', function () {
+    prevX = -1;
+  });
+
+  window.addEventListener('resize', function () {
+    prevX = -1;
+  });
+
+  video.src = 'kling.mp4';
+
+  video.addEventListener('loadedmetadata', function () {
+    metaReady = true;
+    targetTime = 0;
+    video.currentTime = 0;
+  });
+
+  video.addEventListener('loadeddata', function () {
+    loading.classList.add('hidden');
+  });
+
+  video.addEventListener('error', function () {
+    loading.querySelector('.loading-text').textContent = '加载失败';
+  });
+
+})();
+</script>
+</body>
+</html>
